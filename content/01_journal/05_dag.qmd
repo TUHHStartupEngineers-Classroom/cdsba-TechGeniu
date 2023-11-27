@@ -1,7 +1,109 @@
 ---
 title: "Directed Acyclic Graphs"
+author: "Sriramkumar Sarida"
 ---
 
-::: callout-note
-You can delete everything in here and start fresh.
-:::
+# Parking Spot (DAG)
+
+------------------------------------------------------------------------
+
+-   This seems to be similar to the Confounding DAG explained in the theory. The **parking spots** seems to be the *treatment variable* and **store sales** would be the *outcome variable*. The *confounding* variable would be the **location**, as it makes a difference to the store sales if the location of the store is the city center or in the Urban areas.
+
+```{r}
+# Assuming you have the ggdag package installed
+library(ggdag)
+
+# Define the DAG
+dag <- dagify(
+  X ~ Z,
+  Y ~ Z,
+  X ~ Y,
+  coords = list(x = c(Y = 3, Z = 2, X = 1),
+                y = c(Y = 0, Z = 1, X = 0)),
+  labels = list(X = "Sales",
+                Y = "Parking_Spots",
+                Z = "Location")
+)
+
+ggdag(dag) +
+  theme_dag() + 
+  geom_dag_point() +
+  geom_dag_text() +
+  geom_dag_edges() +
+  geom_dag_label_repel(aes(label = label))
+```
+
+# Company sells a SaaS
+
+------------------------------------------------------------------------
+
+> Load the data frame
+
+```{r}
+customer_sat <- readRDS("../../data/customer_sat.rds")
+```
+
+```{r}
+summary(customer_sat)
+
+# Seeing the datatypes of the dataframe
+str(customer_sat)
+
+head(customer_sat)
+```
+
+## regress satisfaction on follow_ups
+
+> Run a linear regression on the customer_sat
+
+```{r}
+lm_model <- lm(satisfaction ~ follow_ups, data = customer_sat)
+
+summary(lm_model)
+```
+
+## regress satisfaction on follow_ups and account for subscription
+
+```{r}
+customer_sat$subscription <- as.factor(customer_sat$subscription)
+lm_model_subscription <- lm(satisfaction ~ follow_ups + subscription, data = customer_sat)
+
+summary(lm_model_subscription)
+```
+
+# Compare the coefficients and find a possible explanation.
+
+-   For the model **without a subscription,** the coefficient is **-3.3093**. This negative coefficient indicates that without a subscription, follow ups decrease the satisfaction level of the customers
+
+-   For the model **with a subscription**, the coefficient is **2.1944.** This positive coefficient indicates that with a subscription, follows_ups increases the satisfaction level of the customers. **Premium** coefficient is +44.7222, indicating that being on this subscription level is associated with a 44.7222 point increase in satisfaction compared to the base category. **Elite** coefficient is +18.0722, indicating that being on this subscription level is associated with an 18.0722 point increase in satisfaction compared to the base category.
+
+-    I believe customers find it intrusive when they are being followed up without any subscription. They probablyy have fewers features as well, so this might be the cause for the negative impact. On the other hand, the premium and elite customers find it better with the follow ups.
+
+-   As mentioned in the previous point, a similar impact is also seen on the variance R^2^ and R^2^ (Adjusted). Both the values increased, as the model now captures more of the variance in satisfaction. This makes subscription level an important factor in explaining customer satisfaction.
+
+
+# Plot the data
+
+```{r}
+# Assuming you have the ggdag package installed
+library(ggdag)
+
+# Define the DAG
+dag_customer_satisfaction <- dagify(
+  Z ~ X,
+  Z ~ Y,
+  Y ~ X,
+  coords = list(x = c(Y = 3, Z = 2, X = 1),
+                y = c(Y = 0, Z = 1, X = 0)),
+  labels = list(X = "Subscription ",
+                Y = "Follow_ups",
+                Z = "Satisfaction")
+)
+
+ggdag(dag_customer_satisfaction) +
+  theme_dag() + 
+  geom_dag_point() +
+  geom_dag_text() +
+  geom_dag_edges() +
+  geom_dag_label_repel(aes(label = label))
+```
