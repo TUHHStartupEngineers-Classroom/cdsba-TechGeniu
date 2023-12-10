@@ -2,6 +2,78 @@
 title: "Randomized Controlled Trials"
 ---
 
-::: callout-note
-You can delete everything in here and start fresh.
-:::
+# Chatbot effect on E - Commerce Business
+
+------------------------------------------------------------------------
+
+## Load the data frame
+
+```{r}
+abtest_data  <- readRDS("../../data/abtest_online.rds")
+```
+
+```{r}
+head(abtest_data)
+```
+
+> Plotting the abtest data to check the balance
+
+```{r}
+library(ggplot2)
+
+compare_purchase <- 
+  ggplot(abtest_data, aes(x = as.factor(chatbot), y = purchase, color = as.factor(chatbot))) +
+  stat_summary(geom = "errorbar", 
+               width = .5,
+               fun.data = "mean_se", 
+               fun.args = list(mult=1.96),
+               show.legend = FALSE) +
+  labs(x = NULL, y = "Purchase", title = "Difference in purchase")
+
+
+compare_purchase_amount <- 
+  ggplot(abtest_data, aes(x = as.factor(chatbot), y = purchase_amount, color = as.factor(chatbot))) +
+  stat_summary(geom = "errorbar", 
+               width = .5,
+               fun.data = "mean_se", 
+               fun.args = list(mult=1.96),
+               show.legend = FALSE) +
+  labs(x = NULL, y = "Purchase Amount", title = "Difference in purchase amount")
+```
+
+> Plot for purchase
+
+```{r}
+compare_purchase
+```
+
+> Plot for purchase amount
+
+```{r}
+compare_purchase_amount
+```
+
+## Run a regression to find the effect of chatbot on sales.
+
+```{r}
+lm_fit <- lm(purchase_amount ~ chatbot + previous_visit + mobile_device, data=abtest_data)
+summary(lm_fit)
+```
+
+-   The **chatbot** variable seems to be having a negative impact on **purchase amount** with an estimate of -6.8488. This implies that the **chatbot** presence has decreased the sales and thereby reducing the **purchase amount**.
+
+## Find subgroup-specific effects by including an interaction. Compute a CATE for one exemplary group. A subgroup could be for example mobile users.
+
+```{r}
+lm_cate <- lm(purchase_amount ~ chatbot * mobile_device + previous_visit, data=abtest_data)
+summary(lm_cate)
+```
+
+## Binomial Outcome
+
+```{r}
+glm_fit <- glm(purchase ~ chatbot + previous_visit + mobile_device, family=binomial, data=abtest_data)
+summary(glm_fit)
+```
+
+-   The estimated values from the logistic regression might not be as straightforward as linear regression, because the coefficients represent the change in logarithmic odds of the outcome for a unit change in the predictor variable.
