@@ -1,7 +1,108 @@
 ---
 title: "Matching and Subclassification"
+author: "Sriramkumar Sarida"
 ---
 
-::: callout-note
-You can delete everything in here and start fresh.
-:::
+# Membership effect on Sales
+
+------------------------------------------------------------------------
+
+## Load the data frame
+
+```{r}
+membership  <- readRDS("../../data/membership.rds")
+```
+
+```{r}
+head(membership)
+```
+
+## DAG Diagram
+
+```{r}
+# Assuming you have the ggdag package installed
+library(ggdag)
+library(ggplot2)
+
+# Define the DAG
+dag <- dagify(
+  X ~ Z,
+  Y ~ Z,
+  Y ~ X,
+  coords = list(x = c(Y = 3, Z = 2, X = 1),
+                y = c(Y = 0, Z = 1, X = 0)),
+  labels = list(X = "card",
+                Y = "avg_purch",
+                Z = "pre_avg_purch")
+)
+
+ggdag(dag) +
+  theme_dag() + 
+  geom_dag_point() +
+  geom_dag_text() +
+  geom_dag_edges() +
+  geom_dag_label_repel(aes(label = label))
+```
+
+## Compute Naive Estimate of ATE
+
+```{r}
+naive_model <- lm(avg_purch ~ card + age + sex + pre_avg_purch, data = membership)
+summary(naive_model)
+```
+
+## Apply Coarsed Matching Method
+
+```{r}
+library(MatchIt)
+match_cem <- matchit(card ~ sex + age + pre_avg_purch, data = membership, method = "cem")
+summary(match_cem)
+data_cem <- match.data(match_cem)
+summary(data_cem)
+model_cem <- lm(avg_purch ~ card, data = data_cem)
+summary(model_cem)
+
+```
+
+## Apply Coarsed Matching Method with curpoints
+
+```{r}
+library(MatchIt)
+cutpoints <- list(age = seq(16, 85, 10), 
+                  pre_avg_purch = seq(0, 160, 20))
+match_cem <- matchit(card ~ sex + age + pre_avg_purch, data = membership, method = "cem", cutpoints = cutpoints)
+summary(match_cem)
+data_cem <- match.data(match_cem)
+summary(data_cem)
+model_cem <- lm(avg_purch ~ card, data = data_cem)
+summary(model_cem)
+
+```
+
+-   Adding cutpoints, did not seem to make much difference to the balance between the treatment and the control group indicating the treatment effect between the treatment and the control group. But this could also be due the the selection of the cutpoints. In this case, it was chosen to be **age** and **pre_avg_purch** might not have strong impact on the membership program.
+
+## Apply nearest neighbour matching Method
+
+```{r}
+match_nn <- matchit(card ~ age + sex + pre_avg_purch, data = membership, method = "nearest", distance = "mahalanobis", replace = T)
+summary(match_nn)
+data_nn <- match.data(match_nn)
+summary(data_nn)
+model_nn <- lm(avg_purch ~ card, data = data_nn)
+summary(model_nn)
+```
+
+## Apply inverse probability weightning matching Method
+```{r}
+propensity_model <- glm(card ~ age + sex + pre_avg_purch, family = binomial(link = "logit"), data = membership)
+summary(propensity_model)
+membership$propensity <- predict(propensity_model, type = "response")
+summary(membership$propensity)
+membership$ipw <- with(membership, (card / propensity) + ((1 - card) / (1 - propensity)))
+summary(membership$ipw)
+model_ipw <- lm(avg_purch ~ card, data = membership, weights = ipw)
+summary(model_ipw)
+```
+
+
+
