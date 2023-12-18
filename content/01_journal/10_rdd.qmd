@@ -1,7 +1,175 @@
 ---
 title: "Regression Discontinuity"
+author: "Sriramkumar Sarida"
 ---
 
-::: callout-note
-You can delete everything in here and start fresh.
-:::
+# Sensitivity of Bandwidth analysis
+
+------------------------------------------------------------------------
+
+## Load the data frame
+
+```{r}
+coupon_data  <- readRDS("../../data/coupon.rds")
+summary(coupon_data)
+head(coupon_data)
+dim(coupon_data)
+```
+
+------------------------------------------------------------------------
+
+## Test with half Bandwidth
+
+```{r}
+library(dplyr)
+c0 <- 60
+bw <- (c0 + c(-2.5, 2.5))
+
+bw
+
+# Subsets below and above threshold in specified bandwidth
+df_bw_below <- coupon_data %>% filter(days_since_last >= bw[1] & days_since_last < c0)
+df_bw_above <- coupon_data %>% filter(days_since_last >= c0 & days_since_last <= bw[2])
+
+df_bw <- bind_rows(df_bw_above, df_bw_below)
+dim(df_bw)
+summary(df_bw_below)
+summary(df_bw_above)
+
+```
+
+```{r}
+model_bw_below <- lm(purchase_after ~ days_since_last, df_bw_below)
+model_bw_above <- lm(purchase_after ~ days_since_last, df_bw_above)
+
+y0 <- predict(model_bw_below, tibble(days_since_last = c0))
+y1 <- predict(model_bw_above, tibble(days_since_last = c0))
+
+late <- y1 - y0
+sprintf("LATE: %.2f", late)
+```
+
+```{r}
+library(ggplot2)
+
+# Minimum and maximum for y-axis limits
+min_y <- min(df_bw$purchase_after)
+max_y <- max(df_bw$purchase_after)
+
+# Add lines for vertical distance and change limits of x-axis.
+dep_var_bw <- 
+  ggplot(df_bw, aes(x = days_since_last, y = purchase_after, color = coupon)) +
+  geom_vline(xintercept = c0, linewidth = 2) +
+  geom_point(alpha = 0.4, size = 1) +
+  geom_smooth(data = df_bw_below, method = "lm", se = F, linewidth = 2) +
+  geom_smooth(data = df_bw_above, method = "lm", se = F, linewidth = 2) +
+  geom_segment(aes(x = c0, xend = bw[2], y = y0, yend = y0),
+             linetype = "dotted") +
+  geom_segment(aes(x = bw[1], xend = c0, y = y1, yend = y1),
+               linetype = "dotted") +
+  annotate("text", x = c0+2, y = mean(c(y1, y0)-2),
+           label = sprintf("Difference: %.2f", (y1 - y0)),
+           fontface = 2) +
+  scale_y_continuous(limits = c(min_y, max_y)) + 
+  scale_color_discrete(labels = c("No coupon", "Coupon")) +
+  xlab("Days since last purchase") +
+  ylab("Purchase after coupon assignment") +
+  theme(legend.title = element_blank())
+dep_var_bw
+```
+
+------------------------------------------------------------------------
+
+## Test with Twice the Bandwidth
+
+```{r}
+library(dplyr)
+c0 <- 60
+bw <- (c0 + c(-10, 10))
+
+bw
+
+# Subsets below and above threshold in specified bandwidth
+df_bw_below <- coupon_data %>% filter(days_since_last >= bw[1] & days_since_last < c0)
+df_bw_above <- coupon_data %>% filter(days_since_last >= c0 & days_since_last <= bw[2])
+
+df_bw <- bind_rows(df_bw_above, df_bw_below)
+dim(df_bw)
+summary(df_bw_below)
+summary(df_bw_above)
+
+```
+
+```{r}
+model_bw_below <- lm(purchase_after ~ days_since_last, df_bw_below)
+model_bw_above <- lm(purchase_after ~ days_since_last, df_bw_above)
+
+y0 <- predict(model_bw_below, tibble(days_since_last = c0))
+y1 <- predict(model_bw_above, tibble(days_since_last = c0))
+
+late <- y1 - y0
+sprintf("LATE: %.2f", late)
+```
+
+```{r}
+# Minimum and maximum for y-axis limits
+min_y <- min(df_bw$purchase_after)
+max_y <- max(df_bw$purchase_after)
+
+# Add lines for vertical distance and change limits of x-axis.
+dep_var_bw <- 
+  ggplot(df_bw, aes(x = days_since_last, y = purchase_after, color = coupon)) +
+  geom_vline(xintercept = c0, linewidth = 2) +
+  geom_point(alpha = 0.4, size = 1) +
+  geom_smooth(data = df_bw_below, method = "lm", se = F, linewidth = 2) +
+  geom_smooth(data = df_bw_above, method = "lm", se = F, linewidth = 2) +
+  geom_segment(aes(x = c0, xend = bw[2], y = y0, yend = y0),
+             linetype = "dotted") +
+  geom_segment(aes(x = bw[1], xend = c0, y = y1, yend = y1),
+               linetype = "dotted") +
+  annotate("text", x = c0+2, y = mean(c(y1, y0)-2),
+           label = sprintf("Difference: %.2f", (y1 - y0)),
+           fontface = 2) +
+  scale_y_continuous(limits = c(min_y, max_y)) + 
+  scale_color_discrete(labels = c("No coupon", "Coupon")) +
+  xlab("Days since last purchase") +
+  ylab("Purchase after coupon assignment") +
+  theme(legend.title = element_blank())
+dep_var_bw
+```
+
+These were the calculated LATE values for the selected bandwidths:
+
+-   Bandwidth = 5, LATE = 7.99
+
+-   Bandwidth = 2.5 (half), LATE = 7.36
+
+-   Bandwidth = 10 (Double), LATE = 9.51
+
+This indicates LATE values are sensitive to the bandwidth chosen. The LATE is higher when the bandwidth is doubled and slightly lower when the bandwidth is halved. A larger bandwidth captures a broader range of the data, possibly introducing more variation. A smaller bandwidth might not capture enough of the treatment's effect, leading to a smaller estimate.
+
+------------------------------------------------------------------------
+
+## Changed Cut off with different past campaign
+
+```{r}
+shipping_data  <- readRDS("../../data/shipping.rds")
+summary(shipping_data)
+head(shipping_data)
+dim(shipping_data)
+```
+
+```{r}
+shipping_data$shipping_status <- ifelse(shipping_data$purchase_amount > 30, "Free", "Not Free")
+
+# Plot the data with color differentiation
+ggplot(shipping_data, aes(x = purchase_amount, y = shipping_status, color = shipping_status)) +
+  geom_point(alpha = 0.2, position = position_jitter(height = 0.1, width = 0)) +
+  geom_vline(xintercept = 30, color = "blue", linetype = "dashed") +
+  scale_fill_manual(values = c("Not Free" = "red", "Free" = "green")) +
+  labs(x = "Purchase Amount", y = "", color = "Shipping Status") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+-   The plot seems to be a valid running variable with the cut-off at 30€. This provided more insight for the customers to spend more than 30€ to avail free shipping.

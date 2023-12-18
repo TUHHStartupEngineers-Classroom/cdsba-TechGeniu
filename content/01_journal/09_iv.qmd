@@ -1,7 +1,80 @@
 ---
 title: "Instrumental Variables"
+author: "Sriramkumar Sarida"
 ---
 
-::: callout-note
-You can delete everything in here and start fresh.
-:::
+# Study of New Pop up for the existing App data base users
+
+------------------------------------------------------------------------
+
+## Draw DAG
+
+```{r}
+library(dagitty)
+library(ggdag)
+library(ggplot2)
+
+
+iv_expl <- dagify(
+  Y ~ D,
+  Y ~ U,
+  D ~ U,
+  D ~ Z,
+  exposure = "D",
+  latent = "U",
+  outcome = "Y",
+  coords = list(x = c(U = 1, D = 0, Y = 2, Z = -1),
+                y = c(U = 1, D = 0, Y = 0, Z = 0)),
+  labels = c("D" = "Pop-up Feature", 
+             "Y" = "App Usage", 
+             "U" = "Unobserved Factor",
+             "Z" = "Encouragement")
+)
+ggdag(iv_expl, text = T) +
+  guides(color = "none") +
+  theme_minimal() + 
+  geom_dag_point() +
+  geom_dag_text() +
+  geom_dag_edges() +
+  geom_dag_label_repel(aes(label = label))
+```
+
+------------------------------------------------------------------------
+
+## Naive based Estimate
+
+```{r}
+app_data <- readRDS("../../data/rand_enc.rds")
+summary(app_data)
+head(app_data)
+```
+
+```{r}
+naive_estimate <- lm(time_spent ~ used_ftr, data = app_data)
+summary(naive_estimate)
+```
+
+------------------------------------------------------------------------
+
+## Test the assumption (Encouragement)
+
+```{r}
+cor(app_data$rand_enc, app_data$used_ftr)
+cor(app_data$rand_enc, app_data$time_spent)
+```
+
+-   There seems to be a strong naive estimate relationship between the pop feature usage and the app time, based on the calculations from above.
+
+-   Additionally, there seems to be a positive relationship between the random encouragement and the pop feature, suggesting that the instrument (random encouragement) was relevant. Similarly, there seems to be a relationship as well between the random encouragement and the time spent, but it's not as significant as the former correlation. This can also be validated, as the random encouragement should not have a significant impact on the time spent by the users on the application.
+
+------------------------------------------------------------------------
+
+## Estimate using 2SLS
+
+```{r}
+library(AER)
+iv_estimate <- ivreg(time_spent ~ used_ftr | rand_enc, data = app_data)
+summary(iv_estimate)
+```
+
+-   The Naive estimate is 10.82, while the IV estimate is 9.73. The naive estimate shows an upward bias as it does not account for unobserved confounders that are related to the feature use and the time spent on the application which is the encouragement. While the IV estimates do take this into account, therefore the estimate was slightly lower. The naive estimate captures not just the effect of the feature usage on the time spent on the application, but also the encouragement, which leads to an overestimate.
