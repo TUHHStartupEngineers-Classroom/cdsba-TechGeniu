@@ -22,6 +22,8 @@ head(hospital_data)
 summary(hospital_data)
 ```
 
+-   There are 46 hospitals in total, however only the first 18 seem to be relevant to us. As we want to compute the difference between the treatment and the control group
+
 ```{r}
 treatment_by_month <- hospital_data %>%
   group_by(month) %>%
@@ -34,18 +36,17 @@ print(treatment_by_month)
 
 -   The exact period when the treatment came into effect is not explicitly shown in the question. To make a better estimate, the data was filtered based on the months to find the sum of the treatment values. So this calculation provides a hint when the new admission procedure was introduced. The treatment came into effect from month 4.
 
-
 ```{r}
 treatment_month = 4
 
 mean_control_before <- hospital_data %>%
-  filter(procedure == 0, month == treatment_month - 1) %>%
-  summarize(mean_satisfaction = mean(satis)) %>%
+  filter(procedure == 0, month == treatment_month - 1, hospital > 18) %>%
+  summarize(mean_satisfaction = mean(satis, na.rm = TRUE)) %>%
   pull(mean_satisfaction)
 
 mean_treated_before <- hospital_data %>%
-  filter(procedure == 1, month == treatment_month - 1) %>%
-  summarize(mean_satisfaction = mean(satis)) %>%
+  filter(procedure == 0, month == treatment_month - 1, hospital <= 18) %>%
+  summarize(mean_satisfaction = mean(satis, na.rm = TRUE)) %>%
   pull(mean_satisfaction)
 
 
@@ -55,13 +56,13 @@ diff_before_treatment
 
 
 mean_control_after <- hospital_data %>%
-  filter(procedure == 0, month == treatment_month) %>%
-  summarize(mean_satisfaction = mean(satis)) %>%
+  filter(procedure == 1, month == treatment_month, hospital > 18) %>%
+  summarize(mean_satisfaction = mean(satis, na.rm = TRUE)) %>%
   pull(mean_satisfaction)
 
 mean_treated_after <- hospital_data %>%
-  filter(procedure == 1, month == treatment_month) %>%
-  summarize(mean_satisfaction = mean(satis)) %>%
+  filter(procedure == 1, month == treatment_month, hospital <= 18) %>%
+  summarize(mean_satisfaction = mean(satis, na.rm = TRUE)) %>%
   pull(mean_satisfaction)
 
 diff_after_treatment = mean_treated_after - mean_control_after
@@ -70,13 +71,21 @@ diff_after_treatment
 
 ```
 
-
 ```{r}
-hospital_data %>%
-  filter(procedure == 1, month < treatment_month) %>%
-  summarise(n = n())
-```
+counts_treated_group <- hospital_data %>%
+  filter(hospital >= 1, hospital <= 18) %>%
+  group_by(hospital, procedure) %>%
+  summarise(count = n())
 
+counts_treated_group
+
+counts_control_group <- hospital_data %>%
+  filter(hospital >= 1, hospital > 18) %>%
+  group_by(hospital, procedure) %>%
+  summarise(count = n())
+
+counts_control_group
+```
 
 ```{r}
 did_estimate <- diff_after_treatment - diff_before_treatment
@@ -84,5 +93,98 @@ did_estimate <- diff_after_treatment - diff_before_treatment
 did_estimate
 ```
 
+------------------------------------------------------------------------
+
+## Linear Regression Model
+
+```{r}
+model_numeric <- lm(satis ~ month + hospital, data = hospital_data)
+
+model_numeric
+```
+
+```{r}
+model <- lm(satis ~ as.factor(month) + as.factor(hospital), data = hospital_data)
+
+model
+
+```
+
+-   R would treat both the month and hospital as numeric variables and assuming a linear relationship. On the other hand, with **as.factor** each unique month and hospital are treated as separate categories, allowing for difference intercept for each one as we see from the result.
+
+```{r}
+# Load tidyverse package
+library(tidyverse)
+
+# Function to simulate data
+generate_data <- function(
+    S = 2, # number of groups
+    P = 10, # number of periods
+    D_size = 1, # effect of treatment
+    D_time = NULL, # time of treatment
+    y_0 = 50, # base value for y
+    sd = 1, # standard deviations for randomly generated sequences
+    scenario = c("A", "B")
+){
+  # create group period dyads
+  s <- rep(0:1, each = P)
+  p <- rep(1:P, S)
+  
+  # timing and size of treatment (effect)
+  delta <- D_size
+  if (missing(D_time)) D_time <- P/2
+  after <- as.numeric(ifelse(p > D_time, 1, 0))
+  
+  # create relation between independent variables and treatment (actually
+  # other way round, but easier to simulate this way)
+  x1 <- rnorm(S*P, s, sd)
+  
+  # create dependent variable ...
+  # ... for scenario (A)
+  y_a <- y_0 + delta*s*after + 1/5*p + x1 + rnorm(S*P, 0, sd)
+  
+  # ... for scenario (B)
+  y_b <- y_0 + delta*s*after + 1/5*p + x1 + s*x1 + 1/3*p*x1 + rnorm(S*P, 0, sd)
+  
+  # add variables to table
+  df <- tibble(
+    treat   = s,
+    period  = p,
+    after   = after,
+    x1      = x1,
+    sales   = if (scenario == "A") {y_a} else {y_b}
+  )
+  
+  # return table
+  return(df)
+}
+```
+
+```{r}
+P     <- 10 # number of periods
+delta <- 1  # true treatment effect
+df_A <- generate_data(P = P, D_size = delta, sd = 0.01, scenario = "A")
 
 
+summary(df_A)
+
+df_A_zoom_in  <- df_A %>% filter(period %in% (P/2):(P/2+1))
+
+df_A_zoom_in
+
+before_control_A <- df_A_zoom_in %>%
+  filter(treat == 0, after == 0) %>% 
+  pull(sales)
+before_treatment_A <- df_A_zoom_in %>%
+  filter(treat == 1, after == 0) %>% 
+  pull(sales)
+
+before_control_A
+
+before_treatment_A
+
+
+diff_before_A <- before_treatment_A - before_control_A
+
+diff_before_A
+```
