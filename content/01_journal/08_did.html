@@ -279,13 +279,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li>There are 46 hospitals in total, however only the first 18 seem to be relevant to us. As we want to compute the difference between the treatment and the control group</li>
 </ul>
-<div class="cell" data-hash="08_did_cache/html/unnamed-chunk-4_595db43b26d968b528e4004821f016ab">
+<div class="cell" data-hash="08_did_cache/html/unnamed-chunk-4_a772e736dc202e6455137cd61b13e27a">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1"></a>treatment_by_month <span class="ot">&lt;-</span> hospital_data <span class="sc">%&gt;%</span></span>
 <span id="cb9-2"><a href="#cb9-2"></a>  <span class="fu">group_by</span>(month) <span class="sc">%&gt;%</span></span>
 <span id="cb9-3"><a href="#cb9-3"></a>  <span class="fu">summarise</span>(<span class="at">treatment_count =</span> <span class="fu">sum</span>(procedure))</span>
 <span id="cb9-4"><a href="#cb9-4"></a></span>
-<span id="cb9-5"><a href="#cb9-5"></a><span class="co"># Display the count of treatments by month</span></span>
-<span id="cb9-6"><a href="#cb9-6"></a><span class="fu">print</span>(treatment_by_month)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb9-5"><a href="#cb9-5"></a><span class="fu">print</span>(treatment_by_month)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>#&gt; # A tibble: 7 × 2
 #&gt;   month treatment_count
@@ -453,102 +452,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li>R would treat both the month and hospital as numeric variables and assuming a linear relationship. On the other hand, with <strong>as.factor</strong> each unique month and hospital are treated as separate categories, allowing for difference intercept for each one as we see from the result.</li>
 </ul>
-<div class="cell" data-hash="08_did_cache/html/unnamed-chunk-10_fb50cb45992c5c9896a8957381d3862e">
-<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1"></a><span class="co"># Load tidyverse package</span></span>
-<span id="cb27-2"><a href="#cb27-2"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb27-3"><a href="#cb27-3"></a></span>
-<span id="cb27-4"><a href="#cb27-4"></a><span class="co"># Function to simulate data</span></span>
-<span id="cb27-5"><a href="#cb27-5"></a>generate_data <span class="ot">&lt;-</span> <span class="cf">function</span>(</span>
-<span id="cb27-6"><a href="#cb27-6"></a>    <span class="at">S =</span> <span class="dv">2</span>, <span class="co"># number of groups</span></span>
-<span id="cb27-7"><a href="#cb27-7"></a>    <span class="at">P =</span> <span class="dv">10</span>, <span class="co"># number of periods</span></span>
-<span id="cb27-8"><a href="#cb27-8"></a>    <span class="at">D_size =</span> <span class="dv">1</span>, <span class="co"># effect of treatment</span></span>
-<span id="cb27-9"><a href="#cb27-9"></a>    <span class="at">D_time =</span> <span class="cn">NULL</span>, <span class="co"># time of treatment</span></span>
-<span id="cb27-10"><a href="#cb27-10"></a>    <span class="at">y_0 =</span> <span class="dv">50</span>, <span class="co"># base value for y</span></span>
-<span id="cb27-11"><a href="#cb27-11"></a>    <span class="at">sd =</span> <span class="dv">1</span>, <span class="co"># standard deviations for randomly generated sequences</span></span>
-<span id="cb27-12"><a href="#cb27-12"></a>    <span class="at">scenario =</span> <span class="fu">c</span>(<span class="st">"A"</span>, <span class="st">"B"</span>)</span>
-<span id="cb27-13"><a href="#cb27-13"></a>){</span>
-<span id="cb27-14"><a href="#cb27-14"></a>  <span class="co"># create group period dyads</span></span>
-<span id="cb27-15"><a href="#cb27-15"></a>  s <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">1</span>, <span class="at">each =</span> P)</span>
-<span id="cb27-16"><a href="#cb27-16"></a>  p <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">1</span><span class="sc">:</span>P, S)</span>
-<span id="cb27-17"><a href="#cb27-17"></a>  </span>
-<span id="cb27-18"><a href="#cb27-18"></a>  <span class="co"># timing and size of treatment (effect)</span></span>
-<span id="cb27-19"><a href="#cb27-19"></a>  delta <span class="ot">&lt;-</span> D_size</span>
-<span id="cb27-20"><a href="#cb27-20"></a>  <span class="cf">if</span> (<span class="fu">missing</span>(D_time)) D_time <span class="ot">&lt;-</span> P<span class="sc">/</span><span class="dv">2</span></span>
-<span id="cb27-21"><a href="#cb27-21"></a>  after <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">ifelse</span>(p <span class="sc">&gt;</span> D_time, <span class="dv">1</span>, <span class="dv">0</span>))</span>
-<span id="cb27-22"><a href="#cb27-22"></a>  </span>
-<span id="cb27-23"><a href="#cb27-23"></a>  <span class="co"># create relation between independent variables and treatment (actually</span></span>
-<span id="cb27-24"><a href="#cb27-24"></a>  <span class="co"># other way round, but easier to simulate this way)</span></span>
-<span id="cb27-25"><a href="#cb27-25"></a>  x1 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(S<span class="sc">*</span>P, s, sd)</span>
-<span id="cb27-26"><a href="#cb27-26"></a>  </span>
-<span id="cb27-27"><a href="#cb27-27"></a>  <span class="co"># create dependent variable ...</span></span>
-<span id="cb27-28"><a href="#cb27-28"></a>  <span class="co"># ... for scenario (A)</span></span>
-<span id="cb27-29"><a href="#cb27-29"></a>  y_a <span class="ot">&lt;-</span> y_0 <span class="sc">+</span> delta<span class="sc">*</span>s<span class="sc">*</span>after <span class="sc">+</span> <span class="dv">1</span><span class="sc">/</span><span class="dv">5</span><span class="sc">*</span>p <span class="sc">+</span> x1 <span class="sc">+</span> <span class="fu">rnorm</span>(S<span class="sc">*</span>P, <span class="dv">0</span>, sd)</span>
-<span id="cb27-30"><a href="#cb27-30"></a>  </span>
-<span id="cb27-31"><a href="#cb27-31"></a>  <span class="co"># ... for scenario (B)</span></span>
-<span id="cb27-32"><a href="#cb27-32"></a>  y_b <span class="ot">&lt;-</span> y_0 <span class="sc">+</span> delta<span class="sc">*</span>s<span class="sc">*</span>after <span class="sc">+</span> <span class="dv">1</span><span class="sc">/</span><span class="dv">5</span><span class="sc">*</span>p <span class="sc">+</span> x1 <span class="sc">+</span> s<span class="sc">*</span>x1 <span class="sc">+</span> <span class="dv">1</span><span class="sc">/</span><span class="dv">3</span><span class="sc">*</span>p<span class="sc">*</span>x1 <span class="sc">+</span> <span class="fu">rnorm</span>(S<span class="sc">*</span>P, <span class="dv">0</span>, sd)</span>
-<span id="cb27-33"><a href="#cb27-33"></a>  </span>
-<span id="cb27-34"><a href="#cb27-34"></a>  <span class="co"># add variables to table</span></span>
-<span id="cb27-35"><a href="#cb27-35"></a>  df <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb27-36"><a href="#cb27-36"></a>    <span class="at">treat   =</span> s,</span>
-<span id="cb27-37"><a href="#cb27-37"></a>    <span class="at">period  =</span> p,</span>
-<span id="cb27-38"><a href="#cb27-38"></a>    <span class="at">after   =</span> after,</span>
-<span id="cb27-39"><a href="#cb27-39"></a>    <span class="at">x1      =</span> x1,</span>
-<span id="cb27-40"><a href="#cb27-40"></a>    <span class="at">sales   =</span> <span class="cf">if</span> (scenario <span class="sc">==</span> <span class="st">"A"</span>) {y_a} <span class="cf">else</span> {y_b}</span>
-<span id="cb27-41"><a href="#cb27-41"></a>  )</span>
-<span id="cb27-42"><a href="#cb27-42"></a>  </span>
-<span id="cb27-43"><a href="#cb27-43"></a>  <span class="co"># return table</span></span>
-<span id="cb27-44"><a href="#cb27-44"></a>  <span class="fu">return</span>(df)</span>
-<span id="cb27-45"><a href="#cb27-45"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<div class="cell" data-hash="08_did_cache/html/unnamed-chunk-11_41e7b2baa87461e43b54de5db02b1f22">
-<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1"></a>P     <span class="ot">&lt;-</span> <span class="dv">10</span> <span class="co"># number of periods</span></span>
-<span id="cb28-2"><a href="#cb28-2"></a>delta <span class="ot">&lt;-</span> <span class="dv">1</span>  <span class="co"># true treatment effect</span></span>
-<span id="cb28-3"><a href="#cb28-3"></a>df_A <span class="ot">&lt;-</span> <span class="fu">generate_data</span>(<span class="at">P =</span> P, <span class="at">D_size =</span> delta, <span class="at">sd =</span> <span class="fl">0.01</span>, <span class="at">scenario =</span> <span class="st">"A"</span>)</span>
-<span id="cb28-4"><a href="#cb28-4"></a></span>
-<span id="cb28-5"><a href="#cb28-5"></a></span>
-<span id="cb28-6"><a href="#cb28-6"></a><span class="fu">summary</span>(df_A)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt;      treat         period         after           x1                sales      
-#&gt;  Min.   :0.0   Min.   : 1.0   Min.   :0.0   Min.   :-0.017317   Min.   :50.20  
-#&gt;  1st Qu.:0.0   1st Qu.: 3.0   1st Qu.:0.0   1st Qu.:-0.002062   1st Qu.:51.15  
-#&gt;  Median :0.5   Median : 5.5   Median :0.5   Median : 0.499945   Median :51.58  
-#&gt;  Mean   :0.5   Mean   : 5.5   Mean   :0.5   Mean   : 0.499671   Mean   :51.85  
-#&gt;  3rd Qu.:1.0   3rd Qu.: 8.0   3rd Qu.:1.0   3rd Qu.: 1.004141   3rd Qu.:52.30  
-#&gt;  Max.   :1.0   Max.   :10.0   Max.   :1.0   Max.   : 1.011962   Max.   :54.01</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1"></a>df_A_zoom_in  <span class="ot">&lt;-</span> df_A <span class="sc">%&gt;%</span> <span class="fu">filter</span>(period <span class="sc">%in%</span> (P<span class="sc">/</span><span class="dv">2</span>)<span class="sc">:</span>(P<span class="sc">/</span><span class="dv">2</span><span class="sc">+</span><span class="dv">1</span>))</span>
-<span id="cb30-2"><a href="#cb30-2"></a></span>
-<span id="cb30-3"><a href="#cb30-3"></a>df_A_zoom_in</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output-display">
-
-<div data-pagedtable="false">
-  <script data-pagedtable-source="" type="application/json">
-{"columns":[{"label":["treat"],"name":[1],"type":["int"],"align":["right"]},{"label":["period"],"name":[2],"type":["int"],"align":["right"]},{"label":["after"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["x1"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["sales"],"name":[5],"type":["dbl"],"align":["right"]}],"data":[{"1":"0","2":"5","3":"0","4":"0.007288275","5":"51.01902"},{"1":"0","2":"6","3":"1","4":"0.006968408","5":"51.22443"},{"1":"1","2":"5","3":"0","4":"1.008802709","5":"52.00429"},{"1":"1","2":"6","3":"1","4":"0.982164030","5":"53.18222"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
-  </script>
-</div>
-</div>
-<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1"></a>before_control_A <span class="ot">&lt;-</span> df_A_zoom_in <span class="sc">%&gt;%</span></span>
-<span id="cb31-2"><a href="#cb31-2"></a>  <span class="fu">filter</span>(treat <span class="sc">==</span> <span class="dv">0</span>, after <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb31-3"><a href="#cb31-3"></a>  <span class="fu">pull</span>(sales)</span>
-<span id="cb31-4"><a href="#cb31-4"></a>before_treatment_A <span class="ot">&lt;-</span> df_A_zoom_in <span class="sc">%&gt;%</span></span>
-<span id="cb31-5"><a href="#cb31-5"></a>  <span class="fu">filter</span>(treat <span class="sc">==</span> <span class="dv">1</span>, after <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb31-6"><a href="#cb31-6"></a>  <span class="fu">pull</span>(sales)</span>
-<span id="cb31-7"><a href="#cb31-7"></a></span>
-<span id="cb31-8"><a href="#cb31-8"></a>before_control_A</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt; [1] 51.01902</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1"></a>before_treatment_A</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt; [1] 52.00429</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1"></a>diff_before_A <span class="ot">&lt;-</span> before_treatment_A <span class="sc">-</span> before_control_A</span>
-<span id="cb35-2"><a href="#cb35-2"></a></span>
-<span id="cb35-3"><a href="#cb35-3"></a>diff_before_A</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>#&gt; [1] 0.9852735</code></pre>
-</div>
-</div>
 
 
 </section>
